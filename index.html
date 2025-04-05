@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Graph Subgraph Rust POC - Gravatar</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        .section {
+            background: #f5f5f5;
+            padding: 20px;
+            border-radius: 8px;
+        }
+        .event-log {
+            height: 200px;
+            overflow-y: auto;
+            background: white;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .gravatar-list {
+            display: grid;
+            gap: 10px;
+        }
+        .gravatar-item {
+            background: white;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .error {
+            color: red;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Graph Subgraph Rust POC</h1>
+    <div class="container">
+        <div class="section">
+            <h2>Events</h2>
+            <div id="eventLog" class="event-log"></div>
+        </div>
+        <div class="section">
+            <h2>Gravatars</h2>
+            <div id="gravatarList" class="gravatar-list"></div>
+        </div>
+    </div>
+    <div id="errorDisplay" class="error"></div>
+
+    <script type="module">
+        import init, { Subgraph } from './pkg/rust_graph_subgraph.js';
+
+        const eventLog = document.getElementById('eventLog');
+        const gravatarList = document.getElementById('gravatarList');
+        const errorDisplay = document.getElementById('errorDisplay');
+
+        function logEvent(message) {
+            const entry = document.createElement('div');
+            entry.textContent = message;
+            eventLog.appendChild(entry);
+            eventLog.scrollTop = eventLog.scrollHeight;
+        }
+
+        function updateGravatarList(gravatar) {
+            const item = document.createElement('div');
+            item.className = 'gravatar-item';
+            item.innerHTML = `
+                <strong>ID:</strong> ${gravatar.id}<br>
+                <strong>Owner:</strong> ${gravatar.owner}<br>
+                <strong>Name:</strong> ${gravatar.display_name}<br>
+                <strong>Image:</strong> ${gravatar.image_url}
+            `;
+            gravatarList.appendChild(item);
+        }
+
+        function clearGravatarList() {
+            gravatarList.innerHTML = '';
+        }
+
+        async function run() {
+            try {
+                await init();
+                logEvent("Subgraph initialized");
+                
+                const subgraph = new Subgraph();
+                
+                // Simulate a NewGravatar event
+                const newGravatarEvent = {
+                    address: "0x1234567890abcdef",
+                    block: {
+                        number: 12345,
+                        hash: "0xabc123"
+                    },
+                    event_type: "NewGravatar",
+                    params: {
+                        id: "0x123",
+                        owner: "0xabc",
+                        displayName: "Alice",
+                        imageUrl: "https://example.com/alice.png"
+                    }
+                };
+
+                // Simulate an UpdatedGravatar event
+                const updateGravatarEvent = {
+                    address: "0x1234567890abcdef",
+                    block: {
+                        number: 12346,
+                        hash: "0xdef456"
+                    },
+                    event_type: "UpdatedGravatar",
+                    params: {
+                        id: "0x123",
+                        displayName: "Alice Updated",
+                        imageUrl: "https://example.com/alice-new.png"
+                    }
+                };
+
+                // Process the events
+                subgraph.handle_event(JSON.stringify(newGravatarEvent));
+                logEvent(`Processed NewGravatar event at block ${newGravatarEvent.block.number}`);
+                
+                subgraph.handle_event(JSON.stringify(updateGravatarEvent));
+                logEvent(`Processed UpdatedGravatar event at block ${updateGravatarEvent.block.number}`);
+                
+                // Display current state
+                logEvent(`Last processed block: ${subgraph.get_last_processed_block()}`);
+                
+                // Display Alice's Gravatar
+                const aliceGravatar = JSON.parse(subgraph.get_gravatar("0x123"));
+                updateGravatarList(aliceGravatar);
+                
+                // Try to process an invalid event
+                const invalidEvent = {
+                    address: "0x1234567890abcdef",
+                    block: {
+                        number: 12347,
+                        hash: "0xghi789"
+                    },
+                    event_type: "InvalidEvent",
+                    params: {}
+                };
+
+                try {
+                    subgraph.handle_event(JSON.stringify(invalidEvent));
+                } catch (e) {
+                    errorDisplay.textContent = `Error: ${e}`;
+                }
+            } catch (e) {
+                errorDisplay.textContent = `Initialization error: ${e}`;
+            }
+        }
+
+        run();
+    </script>
+</body>
+</html> 
